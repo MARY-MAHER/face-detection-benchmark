@@ -3,23 +3,35 @@ import cv2
 import numpy as np
 import dlib
 import time
+import os
+import urllib.request
 from PIL import Image
+def download_file(url, filename):
+    if not os.path.exists(filename):
+        with st.spinner(f'Downloading {filename}...'):
+            urllib.request.urlretrieve(url, filename)
 
 st.set_page_config(page_title="Face Detection Benchmark", layout="wide")
-st.title(" Face Detection Algorithm Comparison")
-st.write("upload one photo and see the difference between two models now ")
+st.title("Face Detection Algorithm Comparison")
+st.write("upload one photo and see the difference between two models now")
 
 @st.cache_resource
 def load_models():
-    # DNN SSD
+    proto_url = "https://raw.githubusercontent.com/opencv/opencv/master/samples/dnn/face_detector/deploy.prototxt"
+    model_url = "https://raw.githubusercontent.com/opencv/opencv_3rdparty/dnn_samples_face_detector_20170830/res10_300x300_ssd_iter_140000.caffemodel"
+    
+    download_file(proto_url, "deploy.prototxt")
+    download_file(model_url, "res10_300x300_ssd_iter_140000.caffemodel")
+    
     net = cv2.dnn.readNetFromCaffe("deploy.prototxt", "res10_300x300_ssd_iter_140000.caffemodel")
-    # Haar Cascade
     haar = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    # HOG
     hog = dlib.get_frontal_face_detector()
     return net, haar, hog
 
-net, haar, hog = load_models()
+try:
+    net, haar, hog = load_models()
+except Exception as e:
+    st.error(f"error: {e}")
 
 uploaded_file = st.sidebar.file_uploader("Upload Image", type=['jpg', 'jpeg', 'png'])
 
@@ -37,11 +49,9 @@ if uploaded_file is not None:
         start = time.time()
         faces = haar.detectMultiScale(gray, 1.1, 5)
         t = (time.time() - start) * 1000
-        
         canvas = img_rgb.copy()
         for (x, y, w, h) in faces:
             cv2.rectangle(canvas, (x, y), (x+w, y+h), (255, 0, 0), 3)
-        
         st.image(canvas, use_column_width=True)
         st.metric("Time", f"{t:.2f} ms")
         st.write(f"Detected: {len(faces)}")
@@ -52,12 +62,10 @@ if uploaded_file is not None:
         start = time.time()
         faces_hog = hog(gray)
         t = (time.time() - start) * 1000
-        
         canvas = img_rgb.copy()
         for face in faces_hog:
             x, y, w, h = face.left(), face.top(), face.width(), face.height()
             cv2.rectangle(canvas, (x, y), (x+w, y+h), (0, 255, 0), 3)
-            
         st.image(canvas, use_column_width=True)
         st.metric("Time", f"{t:.2f} ms")
         st.write(f"Detected: {len(faces_hog)}")
@@ -70,7 +78,6 @@ if uploaded_file is not None:
         blob = cv2.dnn.blobFromImage(cv2.resize(img, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
         net.setInput(blob)
         detections = net.forward()
-        
         canvas = img_rgb.copy()
         count = 0
         for i in range(detections.shape[2]):
@@ -80,7 +87,6 @@ if uploaded_file is not None:
                 box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
                 (x1, y1, x2, y2) = box.astype("int")
                 cv2.rectangle(canvas, (x1, y1), (x2, y2), (0, 0, 255), 3)
-        
         t = (time.time() - start) * 1000
         st.image(canvas, use_column_width=True)
         st.metric("Time", f"{t:.2f} ms")
