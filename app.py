@@ -5,24 +5,25 @@ import dlib
 import time
 import os
 import urllib.request
-from PIL import Image
-def download_file(url, filename):
-    if not os.path.exists(filename):
-        with st.spinner(f'Downloading {filename}...'):
-            urllib.request.urlretrieve(url, filename)
 
+# --- 1. التحميل التلقائي للموديلات (أضمن طريقة) ---
+def download_models():
+    base_url = "https://raw.githubusercontent.com/opencv/opencv/master/samples/dnn/face_detector/deploy.prototxt"
+    weights_url = "https://raw.githubusercontent.com/opencv/opencv_3rdparty/dnn_samples_face_detector_20170830/res10_300x300_ssd_iter_140000.caffemodel"
+    
+    if not os.path.exists("deploy.prototxt"):
+        urllib.request.urlretrieve(base_url, "deploy.prototxt")
+    if not os.path.exists("res10_300x300_ssd_iter_140000.caffemodel"):
+        urllib.request.urlretrieve(weights_url, "res10_300x300_ssd_iter_140000.caffemodel")
+
+# --- 2. إعداد الصفحة ---
 st.set_page_config(page_title="Face Detection Benchmark", layout="wide")
-st.title("Face Detection Algorithm Comparison")
-st.write("upload one photo and see the difference between two models now")
+st.title("👤 Face Detection Algorithm Comparison")
 
+# --- 3. تحميل الموديلات مع معالجة الأخطاء ---
 @st.cache_resource
 def load_models():
-    proto_url = "https://raw.githubusercontent.com/opencv/opencv/master/samples/dnn/face_detector/deploy.prototxt"
-    model_url = "https://raw.githubusercontent.com/opencv/opencv_3rdparty/dnn_samples_face_detector_20170830/res10_300x300_ssd_iter_140000.caffemodel"
-    
-    download_file(proto_url, "deploy.prototxt")
-    download_file(model_url, "res10_300x300_ssd_iter_140000.caffemodel")
-    
+    download_models()
     net = cv2.dnn.readNetFromCaffe("deploy.prototxt", "res10_300x300_ssd_iter_140000.caffemodel")
     haar = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
     hog = dlib.get_frontal_face_detector()
@@ -30,64 +31,13 @@ def load_models():
 
 try:
     net, haar, hog = load_models()
+    st.success("Models loaded successfully! ✅")
 except Exception as e:
-    st.error(f"error: {e}")
+    st.error(f"Error loading models: {e}")
+    st.stop() # بيوقف الكود هنا لو فيه مشكلة عشان ميجيبش spawn error
 
+# --- 4. باقي كود رفع الصور (نفس الكود اللي معاكي) ---
 uploaded_file = st.sidebar.file_uploader("Upload Image", type=['jpg', 'jpeg', 'png'])
-
 if uploaded_file is not None:
-    file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-    img = cv2.imdecode(file_bytes, 1)
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    
-    col1, col2, col3 = st.columns(3)
-
-    # --- 1. Haar Cascade ---
-    with col1:
-        st.subheader("Haar Cascade")
-        start = time.time()
-        faces = haar.detectMultiScale(gray, 1.1, 5)
-        t = (time.time() - start) * 1000
-        canvas = img_rgb.copy()
-        for (x, y, w, h) in faces:
-            cv2.rectangle(canvas, (x, y), (x+w, y+h), (255, 0, 0), 3)
-        st.image(canvas, use_column_width=True)
-        st.metric("Time", f"{t:.2f} ms")
-        st.write(f"Detected: {len(faces)}")
-
-    # --- 2. HOG + SVM ---
-    with col2:
-        st.subheader("HOG + SVM")
-        start = time.time()
-        faces_hog = hog(gray)
-        t = (time.time() - start) * 1000
-        canvas = img_rgb.copy()
-        for face in faces_hog:
-            x, y, w, h = face.left(), face.top(), face.width(), face.height()
-            cv2.rectangle(canvas, (x, y), (x+w, y+h), (0, 255, 0), 3)
-        st.image(canvas, use_column_width=True)
-        st.metric("Time", f"{t:.2f} ms")
-        st.write(f"Detected: {len(faces_hog)}")
-
-    # --- 3. DNN SSD ---
-    with col3:
-        st.subheader("Deep Learning (SSD)")
-        start = time.time()
-        h, w = img.shape[:2]
-        blob = cv2.dnn.blobFromImage(cv2.resize(img, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
-        net.setInput(blob)
-        detections = net.forward()
-        canvas = img_rgb.copy()
-        count = 0
-        for i in range(detections.shape[2]):
-            conf = detections[0, 0, i, 2]
-            if conf > 0.5:
-                count += 1
-                box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-                (x1, y1, x2, y2) = box.astype("int")
-                cv2.rectangle(canvas, (x1, y1), (x2, y2), (0, 0, 255), 3)
-        t = (time.time() - start) * 1000
-        st.image(canvas, use_column_width=True)
-        st.metric("Time", f"{t:.2f} ms")
-        st.write(f"Detected: {count}")
+    # كملي باقي الكود هنا...
+    st.write("Image uploaded!")
