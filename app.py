@@ -5,7 +5,6 @@ import dlib
 import time
 import os
 
-# إعداد الصفحة
 st.set_page_config(page_title="Face Detection Benchmark", layout="wide")
 st.title("Face Detection Comparison")
 
