@@ -1,44 +1,31 @@
 import os
-import sys
-import subprocess
-
-# 1. Ensure core libraries are installed manually to avoid Cloud deployment issues
-try:
-    import cv2
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "opencv-python-headless"])
-    import cv2
-
-try:
-    import dlib
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "dlib"])
-    import dlib
-
 import streamlit as st
+import cv2
+import dlib
 import numpy as np
 import time
 from PIL import Image
 
-# Page Configuration
+# 1. Page Configuration
 st.set_page_config(page_title="Face Detection Benchmark", layout="wide")
-st.title(" Face Detection Benchmark System")
+st.title("Face Detection Benchmark System")
 st.write("Compare speed and accuracy of popular Face Detection algorithms.")
 
-# Model Loading Section
+# 2. Model Loading Section (Simplified for Cloud)
 @st.cache_resource
 def load_models():
     # DNN Model (Caffe)
     proto = "deploy.prototxt"
     model = "res10_300x300_ssd_iter_140000.caffemodel"
     
+    # تأكدي إن الملفات دي مرفوعة في نفس الفولدر على GitHub
     if not os.path.exists(proto) or not os.path.exists(model):
         st.error(f"Critical Error: Missing model files ({proto} or {model}) in repository.")
         return None, None, None
         
     net = cv2.dnn.readNetFromCaffe(proto, model)
     
-    # Haar Cascade
+    # Haar Cascade (OpenCV بيجيبها أوتوماتيك)
     haar = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
     
     # Dlib HOG
@@ -52,8 +39,8 @@ net, haar, hog = load_models()
 st.sidebar.header("Experiment Settings")
 uploaded_file = st.sidebar.file_uploader("Upload an Image", type=['jpg', 'jpeg', 'png'])
 
-if uploaded_file is not None:
-    # Convert image to OpenCV format
+if uploaded_file is not None and net is not None:
+    # Convert image
     image = Image.open(uploaded_file)
     img_array = np.array(image)
     img_cv = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
@@ -96,7 +83,7 @@ if uploaded_file is not None:
     with col3:
         st.subheader("Deep Learning (SSD)")
         start_time = time.time()
-        (h, w) = img_cv.shape[:2]
+        (h_img, w_img) = img_cv.shape[:2]
         blob = cv2.dnn.blobFromImage(cv2.resize(img_cv, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
         net.setInput(blob)
         detections = net.forward()
@@ -107,7 +94,7 @@ if uploaded_file is not None:
         for i in range(0, detections.shape[2]):
             confidence = detections[0, 0, i, 2]
             if confidence > 0.5:
-                box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                box = detections[0, 0, i, 3:7] * np.array([w_img, h_img, w_img, h_img])
                 (startX, startY, endX, endY) = box.astype("int")
                 cv2.rectangle(res_dnn, (startX, startY), (endX, endY), (0, 0, 255), 5)
                 dnn_count += 1
@@ -116,5 +103,7 @@ if uploaded_file is not None:
         st.metric("Inference Time", f"{(end_time - start_time)*1000:.2f} ms")
         st.write(f"Faces detected: {dnn_count}")
 
+elif net is None:
+    st.warning("Please make sure model files are uploaded to the repository.")
 else:
     st.info("Please upload an image from the sidebar to start the benchmark.")
