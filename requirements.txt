@@ -1,7 +1,5 @@
 streamlit
 opencv-python-headless
 dlib
-pandas
 numpy
 Pillow
-requests
