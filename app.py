@@ -18,14 +18,13 @@ def load_models():
     proto = "deploy.prototxt"
     model = "res10_300x300_ssd_iter_140000.caffemodel"
     
-    # تأكدي إن الملفات دي مرفوعة في نفس الفولدر على GitHub
     if not os.path.exists(proto) or not os.path.exists(model):
         st.error(f"Critical Error: Missing model files ({proto} or {model}) in repository.")
         return None, None, None
         
     net = cv2.dnn.readNetFromCaffe(proto, model)
     
-    # Haar Cascade (OpenCV بيجيبها أوتوماتيك)
+    # Haar Cascade 
     haar = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
     
     # Dlib HOG
